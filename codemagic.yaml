@@ -3,7 +3,7 @@ workflows:
     name: Flutter Android Build
     max_build_duration: 60
     environment:
-      flutter: latest
+      flutter: 3.24.3   # yeh currently latest stable hai (Sept 2025)
       java: 11
     scripts:
       - name: Get dependencies
