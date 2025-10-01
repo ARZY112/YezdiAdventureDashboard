@@ -4,7 +4,6 @@ workflows:
     max_build_duration: 60
     environment:
       flutter: latest
-      xcode: none
       java: 11
     scripts:
       - name: Get dependencies
@@ -15,4 +14,3 @@ workflows:
           flutter build apk --release
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
-    
