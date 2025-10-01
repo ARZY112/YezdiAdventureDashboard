@@ -1,0 +1,21 @@
+workflows:
+  flutter-android:
+    name: Flutter Android Build
+    max_build_duration: 60
+    environment:
+      flutter: latest
+      xcode: none
+      java: 11
+    scripts:
+      - name: Get dependencies
+        script: |
+          flutter pub get
+      - name: Build Android (release)
+        script: |
+          flutter build apk --release
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+    publishing:
+      google_play:
+        track: internal
+        # agar tum Google Play deploy karna chahte ho to credentials add karna padega (JSON key etc.)
