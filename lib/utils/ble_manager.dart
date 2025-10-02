@@ -1,19 +1,13 @@
-// Enhanced BLE Manager based on nRF Connect analysis
-// Key improvements:
-// 1. Better service discovery logging
-// 2. Simplified authentication (may not be needed)
-// 3. Enhanced data parsing with hex logging
-// 4. Better error handling
+// Enhanced BLE Manager - Complete Version with Better Logging
+// ignore_for_file: avoid_print
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 import '../models/bike_data.dart';
 
 class BLEManager extends ChangeNotifier {
@@ -130,6 +124,193 @@ class BLEManager extends ChangeNotifier {
         _startReconnect(device);
       } else if (state == BluetoothDeviceState.connected) {
         _isConnected = true;
+        _connectedDevice = device;
+        _reconnectTimer?.cancel();
+        _reconnectAttempt = 0;
+        _addLog("✅ Connected! Discovering services...");
+        await _discoverAndSubscribe(device);
+        notifyListeners();
+      }
+    });
+
+    try {
+      await device.connect(autoConnect: false, timeout: const Duration(seconds: 15));
+    } catch (e) {
+      _addLog("❌ Connection failed: $e");
+      _connectionStateSubscription?.cancel();
+    }
+  }
+  
+  void _startReconnect(BluetoothDevice device) {
+    if (_reconnectTimer != null && _reconnectTimer!.isActive) return;
+    int delaySeconds = pow(2, min(_reconnectAttempt, 4)).toInt();
+    _addLog("🔄 Reconnecting in ${delaySeconds}s (Attempt ${_reconnectAttempt + 1})");
+    
+    _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
+        connectToDevice(device);
+    });
+    _reconnectAttempt++;
+  }
+
+  Future<void> disconnectFromDevice() async {
+    _reconnectTimer?.cancel();
+    _reconnectAttempt = 0;
+    if (_connectedDevice != null) {
+      await _connectedDevice!.disconnect();
+    }
+    _addLog("🔌 Manual disconnect");
+  }
+
+  Future<void> _discoverAndSubscribe(BluetoothDevice device) async {
+    try {
+      List<BluetoothService> services = await device.discoverServices();
+      _addLog("📡 Found ${services.length} services");
+      
+      bool foundTargetService = false;
+      
+      for (var service in services) {
+        _addLog("Service: ${service.uuid}");
+        
+        if (service.uuid == _TARGET_SERVICE_UUID) {
+          foundTargetService = true;
+          _addLog("✅ Found target service FFE0!");
+          
+          for (var char in service.characteristics) {
+            final props = char.properties;
+            _addLog("  📍 Char ${char.uuid.toString().substring(4, 8).toUpperCase()}: "
+                   "R:${props.read} W:${props.write} N:${props.notify}");
+            
+            // Store characteristics
+            if (char.uuid == _DATA_CHARACTERISTIC_UUID) {
+              _dataChar = char;
+              _addLog("  ✅ DATA characteristic (FFE1) found");
+            }
+            if (char.uuid == _WRITE_CHARACTERISTIC_UUID) {
+              _writeChar = char;
+              _addLog("  ✅ WRITE characteristic (FFE2) found");
+            }
+          }
+        }
+      }
+      
+      if (!foundTargetService) {
+        _addLog("❌ Target service FFE0 not found!");
+        return;
+      }
+
+      // Try to read initial data
+      if (_dataChar != null && _dataChar!.properties.read) {
+        try {
+          final initialData = await _dataChar!.read();
+          _addLog("📥 Initial read: ${_bytesToHex(initialData)}");
+        } catch (e) {
+          _addLog("⚠️ Could not read initial data: $e");
+        }
+      }
+
+      // Subscribe to notifications
+      if (_dataChar != null && _dataChar!.properties.notify) {
+        await _dataChar!.setNotifyValue(true);
+        _dataChar!.value.listen((value) {
+          if (value.isNotEmpty) {
+            _addLog("📨 Data: ${_bytesToHex(value)}");
+            _parseBikeData(value);
+          }
+        });
+        _addLog("✅ Subscribed to notifications on FFE1");
+      } else {
+        _addLog("❌ Cannot subscribe - NOTIFY not supported");
+      }
+
+    } catch (e) {
+      _addLog("❌ Discovery error: $e");
+    }
+  }
+
+  String _bytesToHex(List<int> bytes) {
+    return bytes.map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase()).join(' ');
+  }
+
+  void _parseBikeData(List<int> data) {
+    // TODO: Reverse engineer the actual protocol
+    // For now, log the data and show basic parsing
+    
+    if (data.length < 4) {
+      _addLog("⚠️ Data too short: ${data.length} bytes");
+      return;
+    }
+
+    try {
+      // Example parsing - ADJUST BASED ON ACTUAL DATA FORMAT
+      // You need to observe the data patterns and decode them
+      
+      _bikeData = BikeData(
+        speed: data.length > 0 ? data[0] : 0,
+        rpm: data.length > 1 ? data[1] * 50 : 0,  // Might need scaling
+        gear: data.length > 2 ? (data[2] & 0x0F) : 0,  // Lower nibble
+        fuel: data.length > 3 ? data[3] / 255.0 : 0.0,  // 0-255 to 0.0-1.0
+        mode: data.length > 2 ? _parseMode((data[2] & 0xF0) >> 4) : 'ROAD',  // Upper nibble
+        highBeam: data.length > 4 ? (data[4] & 0x01) != 0 : false,
+        hazard: data.length > 4 ? (data[4] & 0x02) != 0 : false,
+        engineCheck: data.length > 4 ? (data[4] & 0x04) != 0 : false,
+        batteryWarning: data.length > 4 ? (data[4] & 0x08) != 0 : false,
+      );
+      notifyListeners();
+    } catch (e) {
+      _addLog("❌ Parse error: $e");
+    }
+  }
+
+  String _parseMode(int modeValue) {
+    switch (modeValue) {
+      case 0: return 'ROAD';
+      case 1: return 'RAIN';
+      case 2: return 'OFFROAD';
+      default: return 'UNKNOWN';
+    }
+  }
+
+  // Helper method to send commands to bike
+  Future<void> sendCommand(List<int> command) async {
+    if (_writeChar == null) {
+      _addLog("❌ Write characteristic not available");
+      return;
+    }
+    
+    try {
+      await _writeChar!.write(command, withoutResponse: true);
+      _addLog("📤 Sent: ${_bytesToHex(command)}");
+    } catch (e) {
+      _addLog("❌ Write error: $e");
+    }
+  }
+
+  void _startMockDataStream() {
+    _mockDataTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (!_isConnected) {
+        final random = Random();
+        _bikeData = BikeData(
+          speed: random.nextInt(181),
+          rpm: random.nextInt(8001),
+          gear: random.nextInt(7),
+          fuel: random.nextDouble(),
+          mode: ['ROAD', 'RAIN', 'OFFROAD'][random.nextInt(3)],
+          highBeam: random.nextBool(),
+          hazard: random.nextBool(),
+          engineCheck: random.nextBool(),
+          batteryWarning: random.nextBool(),
+          odo: 12345.6 + random.nextDouble() * 10,
+          tripA: 123.4 + random.nextDouble(),
+          tripB: 56.7 + random.nextDouble(),
+          dte: 150.0 - random.nextInt(50),
+          afeA: 25.5 + random.nextDouble() * 5,
+          afeB: 28.1 + random.nextDouble() * 5,
+        );
+        notifyListeners();
+      }
+    });
+  }
+}        _isConnected = true;
         _connectedDevice = device;
         _reconnectTimer?.cancel();
         _reconnectAttempt = 0;
@@ -448,4 +629,5 @@ class BLEManager extends ChangeNotifier {
     });
   }
 }
+
 
