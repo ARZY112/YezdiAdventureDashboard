@@ -1,16 +1,34 @@
 workflows:
-  flutter-android:
-    name: Flutter Android Build
-    max_build_duration: 60
+  android-workflow:
+    name: Android Workflow
+    max_build_duration: 120
+    instance_type: mac_mini_m1
     environment:
-      flutter: 3.24.3   # yeh currently latest stable hai (Sept 2025)
-      java: 11
+      java: 17
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      vars:
+        PACKAGE_NAME: "com.yezdi.dashboard"
     scripts:
-      - name: Get dependencies
-        script: |
-          flutter pub get
-      - name: Build Android (release)
-        script: |
+      - name: Set up local.properties
+        script: | 
+          echo "flutter.sdk=$HOME/programs/flutter" > "$CM_BUILD_DIR/android/local.properties"
+      - name: Get Flutter packages
+        script: | 
+          flutter packages pub get
+      - name: Build APK with Flutter
+        script: | 
           flutter build apk --release
     artifacts:
-      - build/app/outputs/flutter-apk/*.apk
+      - build/**/outputs/**/*.apk
+      - build/**/outputs/**/*.aab
+      - build/**/outputs/**/mapping.txt
+      - flutter_drive.log
+    publishing:
+      email:
+        recipients:
+          - arzy488648@gmail.com
+        notify:
+          success: true
+          failure: false
