@@ -18,13 +18,10 @@ dependencies:
 
   # UI & UX
   google_maps_flutter: ^2.6.0
-  qr_code_scanner: ^1.0.1
   just_audio: ^0.9.39
   
-  # Removed 3D Rendering dependencies
-  # flutter_gl: ^0.8.0+1
-  # three_dart: ^0.1.2
-  # three_dart_jsm: ^0.1.2
+  # QR Scanner removed - causing build issues
+  # qr_code_scanner: ^1.0.1
 
   # Utilities
   permission_handler: ^11.0.1
@@ -32,6 +29,7 @@ dependencies:
   crypto: ^3.0.3
   path_provider: ^2.1.1
   file_picker: ^6.1.1
+  provider: ^6.0.0
 
   cupertino_icons: ^1.0.2
 
@@ -44,7 +42,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/yezdi_logo.png
-    - assets/yezdi_bike.png  # Keep this for the static image
-    # Removed 3D model assets
-    # - assets/bike.obj
-    # - assets/bike.mtl
+    - assets/yezdi_bike.png
