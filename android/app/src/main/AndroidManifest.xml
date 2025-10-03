@@ -1,25 +1,4 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    
-    <!-- ============ BLUETOOTH PERMISSIONS - YE LINES ADD KARO ============ -->
-    
-    <!-- Bluetooth LE hardware -->
-    <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
-    
-    <!-- Android 12+ (API 31+) Bluetooth permissions -->
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" 
-                     android:usesPermissionFlags="neverForLocation" />
-    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    
-    <!-- Location permissions - ZAROORI hai BLE scanning ke liye -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    
-    <!-- Legacy Bluetooth - Purane Android versions (11 and below) ke liye -->
-    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
-    
-    <!-- ============ PERMISSIONS END ============ -->
-    
     <application
         android:label="yezdi_dashboard"
         android:name="${applicationName}"
