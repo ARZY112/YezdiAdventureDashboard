@@ -3,7 +3,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:intl/intl.dart';
@@ -58,17 +57,10 @@ class BLEManager extends ChangeNotifier {
   }
   
   Future<void> exportLogs() async {
-    try {
-      final result = await FilePicker.platform.saveFile(
-          dialogTitle: 'Save BLE Logs',
-          fileName: 'yezdi_logs_${DateTime.now().millisecondsSinceEpoch}.txt',
-      );
-      if (result != null) {
-        _addLog("Log export initiated to: $result");
-      }
-    } catch (e) {
-      _addLog("Export error: $e");
-    }
+    _addLog("Logs printed to console");
+    print("=== YEZDI DASHBOARD LOGS ===");
+    print(_log);
+    print("=== END LOGS ===");
   }
 
   void startScan() async {
