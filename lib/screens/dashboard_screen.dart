@@ -400,10 +400,12 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
 
   
   Widget _buildTopIndicators(BikeData data, bool isConnected) {
-    return Positioned(
-      top: 40,
-      left: 0,
-      right: 0,
+  return Positioned(
+    top: 50,  // INCREASED from 40 to 50
+    left: 0,
+    right: 0,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),  // Added padding
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
@@ -412,20 +414,23 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           _indicatorIcon(Icons.miscellaneous_services, isConnected && data.engineCheck, Colors.yellow),
           _indicatorIcon(Icons.battery_alert, isConnected && data.batteryWarning, Colors.red),
           const SizedBox(width: 20),
-          Text(
-            DateFormat('hh:mm a').format(DateTime.now()),
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Text(
+              DateFormat('hh:mm a').format(DateTime.now()),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
           ),
         ],
       ),
-    );
-  }
-  
-  Widget _indicatorIcon(IconData icon, bool isActive, Color activeColor) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      child: Icon(icon, color: isActive ? activeColor : Colors.grey.shade800, size: 28),
-    );
-  }
+    ),
+  );
 }
-
