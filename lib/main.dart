@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'screens/permission_screen.dart';
-import 'utils/ble_manager.dart';
+import 'utils/classic_bt_manager.dart';  // CHANGED FROM ble_manager
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,7 +12,7 @@ class YezdiDashboardApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (context) => BLEManager(),
+      create: (context) => ClassicBTManager(),  // CHANGED FROM BLEManager
       child: MaterialApp(
         title: 'Yezdi Adventure Dashboard',
         debugShowCheckedModeBanner: false,
