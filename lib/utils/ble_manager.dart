@@ -25,7 +25,6 @@ class BLEManager extends ChangeNotifier {
   BluetoothCharacteristic? _dataChar;
   BluetoothCharacteristic? _writeChar;
 
-  // Store discovered services for debugging
   List<String> discoveredServiceUUIDs = [];
   List<String> discoveredCharacteristicUUIDs = [];
 
@@ -186,18 +185,16 @@ class BLEManager extends ChangeNotifier {
         _connectedDevice = device;
         _reconnectTimer?.cancel();
         _reconnectAttempt = 0;
-        _addLog("✅ Connected!");
+        _addLog("Connected!");
         
-        // === CRITICAL: Ensure pairing first! ===
         bool isPaired = await _ensurePaired(device);
         
         if (isPaired) {
-          _addLog("✅ Device is paired. Waiting before discovery...");
+          _addLog("Device is paired. Waiting before discovery...");
           await Future.delayed(Duration(seconds: 3));
           await _discoverAndSubscribe(device);
         } else {
-          _addLog("⚠️ Pairing incomplete. Trying discovery anyway...");
-          _addLog("💡 TIP: Manually pair in Android Bluetooth settings if issues persist!");
+          _addLog("Pairing incomplete. Trying discovery anyway...");
           await Future.delayed(Duration(seconds: 2));
           await _discoverAndSubscribe(device);
         }
@@ -220,13 +217,13 @@ class BLEManager extends ChangeNotifier {
       _addLog("Current bond state: $bondState");
       
       if (bondState == BluetoothBondState.bonded) {
-        _addLog("✅ Already paired!");
+        _addLog("Already paired!");
         return true;
       }
       
       if (bondState == BluetoothBondState.none) {
-        _addLog("⚙️ Device not paired. Attempting pairing...");
-        _addLog("📱 You may see a pairing prompt - ACCEPT IT!");
+        _addLog("Device not paired. Attempting pairing...");
+        _addLog("You may see a pairing prompt - ACCEPT IT!");
         
         try {
           await device.createBond();
@@ -236,21 +233,21 @@ class BLEManager extends ChangeNotifier {
           _addLog("New bond state: $newBondState");
           
           if (newBondState == BluetoothBondState.bonded) {
-            _addLog("✅ Pairing successful!");
+            _addLog("Pairing successful!");
             return true;
           } else {
-            _addLog("⚠️ Pairing incomplete: $newBondState");
+            _addLog("Pairing incomplete: $newBondState");
             return false;
           }
         } catch (e) {
-          _addLog("❌ Pairing error: $e");
+          _addLog("Pairing error: $e");
           return false;
         }
       }
       
       return bondState == BluetoothBondState.bonded;
     } catch (e) {
-      _addLog("❌ Bond check error: $e");
+      _addLog("Bond check error: $e");
       return false;
     }
   }
@@ -277,7 +274,7 @@ class BLEManager extends ChangeNotifier {
 
   Future<void> _discoverAndSubscribe(BluetoothDevice device) async {
     try {
-      _addLog("🔍 Discovering ALL services...");
+      _addLog("Discovering ALL services...");
       
       List<BluetoothService> services = await device.discoverServices();
       _addLog("Found ${services.length} services");
@@ -293,11 +290,10 @@ class BLEManager extends ChangeNotifier {
       for (var service in services) {
         String serviceUUID = service.uuid.toString().toUpperCase();
         discoveredServiceUUIDs.add(serviceUUID);
-        _addLog("📦 Service: $serviceUUID");
+        _addLog("Service: $serviceUUID");
         
-        // Skip standard Bluetooth services
         if (serviceUUID.startsWith("0000180") || serviceUUID.startsWith("0000181")) {
-          _addLog("   ⏭️ Skipping standard service");
+          _addLog("   Skipping standard service");
           continue;
         }
         
@@ -306,32 +302,29 @@ class BLEManager extends ChangeNotifier {
           discoveredCharacteristicUUIDs.add(charUUID);
           
           final props = char.properties;
-          _addLog("   📝 Char: ${charUUID.length > 8 ? charUUID.substring(4, 8) : charUUID}");
+          _addLog("   Char: ${charUUID.length > 8 ? charUUID.substring(4, 8) : charUUID}");
           _addLog("      Read=${props.read}, Write=${props.write}, "
                   "Notify=${props.notify}, WriteNoResp=${props.writeWithoutResponse}");
           
-          // Find characteristics with NOTIFY capability
           if (props.notify && bestDataChar == null) {
             bestDataChar = char;
-            _addLog("      ✅ Selected as DATA characteristic");
+            _addLog("      Selected as DATA characteristic");
           }
           
-          // Find characteristics with WRITE capability
           if ((props.write || props.writeWithoutResponse) && bestWriteChar == null) {
             bestWriteChar = char;
-            _addLog("      ✅ Selected as WRITE characteristic");
+            _addLog("      Selected as WRITE characteristic");
           }
           
-          // Try to read if readable
           if (props.read) {
             try {
               await Future.delayed(Duration(milliseconds: 200));
               List<int> value = await char.read();
               if (value.isNotEmpty) {
-                _addLog("      📊 Read: ${_bytesToHex(value)}");
+                _addLog("      Read: ${_bytesToHex(value)}");
               }
             } catch (e) {
-              _addLog("      ❌ Read failed: $e");
+              _addLog("      Read failed: $e");
             }
           }
         }
@@ -343,39 +336,74 @@ class BLEManager extends ChangeNotifier {
       _writeChar = bestWriteChar;
       
       if (_dataChar == null) {
-        _addLog("⚠️ WARNING: No NOTIFY characteristic found!");
+        _addLog("WARNING: No NOTIFY characteristic found!");
         _addLog("Device may not send continuous data.");
-        _addLog("Try reconnecting or manual pairing first.");
         return;
       }
       
-      _addLog("✅ Using DATA characteristic: ${_dataChar!.uuid}");
+      _addLog("Using DATA characteristic: ${_dataChar!.uuid}");
       if (_writeChar != null) {
-        _addLog("✅ Using WRITE characteristic: ${_writeChar!.uuid}");
+        _addLog("Using WRITE characteristic: ${_writeChar!.uuid}");
       }
       
       // Subscribe to notifications
       try {
         await _dataChar!.setNotifyValue(true);
-        _addLog("🔔 Subscribed to notifications!");
+        _addLog("Subscribed to notifications!");
         
         _dataChar!.lastValueStream.listen((value) {
           if (value.isNotEmpty) {
-            _addLog("📥 Data received: ${_bytesToHex(value)}");
+            _addLog("Data received: ${_bytesToHex(value)}");
             _parseBikeData(value);
           }
         }, onError: (e) {
-          _addLog("❌ Notification error: $e");
+          _addLog("Notification error: $e");
         });
         
-        _addLog("✅ Ready to receive bike data!");
+        // === AUTHENTICATION & ACTIVATION SEQUENCE ===
+        if (_writeChar != null) {
+          _addLog("Attempting authentication sequence...");
+          
+          try {
+            await Future.delayed(Duration(milliseconds: 500));
+            
+            // Try multiple common patterns
+            // Pattern 1: Simple enable
+            await _writeChar!.write([0x01], withoutResponse: true);
+            _addLog("Sent: Enable command (0x01)");
+            await Future.delayed(Duration(milliseconds: 300));
+            
+            // Pattern 2: Standard auth token
+            await _writeChar!.write([0xAA, 0x55], withoutResponse: true);
+            _addLog("Sent: Auth token (0xAA 0x55)");
+            await Future.delayed(Duration(milliseconds: 300));
+            
+            // Pattern 3: Start telemetry
+            await _writeChar!.write([0xFF, 0x01, 0x00], withoutResponse: true);
+            _addLog("Sent: Start telemetry");
+            await Future.delayed(Duration(milliseconds: 300));
+            
+            // Pattern 4: Alternative auth
+            await _writeChar!.write([0x01, 0x01], withoutResponse: true);
+            _addLog("Sent: Alt auth (0x01 0x01)");
+            
+            _addLog("Authentication sequence complete");
+            _addLog("Waiting for data stream...");
+            _addLog("If no data arrives in 10s, reconnect or check logs");
+            
+          } catch (e) {
+            _addLog("Authentication error: $e");
+          }
+        } else {
+          _addLog("No write characteristic - cannot send commands");
+        }
         
       } catch (e) {
-        _addLog("❌ Failed to subscribe: $e");
+        _addLog("Failed to subscribe: $e");
       }
 
     } catch (e) {
-      _addLog("❌ Discovery error: $e");
+      _addLog("Discovery error: $e");
     }
     
     notifyListeners();
@@ -387,11 +415,11 @@ class BLEManager extends ChangeNotifier {
 
   void _parseBikeData(List<int> data) {
     if (data.isEmpty) {
-      _addLog("⚠️ Empty data received");
+      _addLog("Empty data received");
       return;
     }
 
-    _addLog("🔍 Parsing ${data.length} bytes...");
+    _addLog("Parsing ${data.length} bytes...");
 
     try {
       _bikeData = BikeData(
@@ -406,12 +434,12 @@ class BLEManager extends ChangeNotifier {
         batteryWarning: data.length > 4 ? (data[4] & 0x08) != 0 : false,
       );
       
-      _addLog("✅ Parsed: Speed=${_bikeData.speed}, RPM=${_bikeData.rpm}, "
+      _addLog("Parsed: Speed=${_bikeData.speed}, RPM=${_bikeData.rpm}, "
               "Gear=${_bikeData.gear}, Fuel=${(_bikeData.fuel * 100).toStringAsFixed(0)}%");
       
       notifyListeners();
     } catch (e) {
-      _addLog("❌ Parse error: $e");
+      _addLog("Parse error: $e");
     }
   }
 
@@ -426,15 +454,15 @@ class BLEManager extends ChangeNotifier {
 
   Future<void> sendCommand(List<int> command) async {
     if (_writeChar == null) {
-      _addLog("❌ Write characteristic not available");
+      _addLog("Write characteristic not available");
       return;
     }
     
     try {
       await _writeChar!.write(command, withoutResponse: true);
-      _addLog("📤 Sent command: ${_bytesToHex(command)}");
+      _addLog("Sent command: ${_bytesToHex(command)}");
     } catch (e) {
-      _addLog("❌ Write error: $e");
+      _addLog("Write error: $e");
     }
   }
 
