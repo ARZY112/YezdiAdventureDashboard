@@ -1,7 +1,6 @@
 // ignore_for_file: avoid_print
 
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
@@ -26,6 +25,10 @@ class BLEManager extends ChangeNotifier {
   BluetoothCharacteristic? _dataChar;
   BluetoothCharacteristic? _writeChar;
 
+  // Store discovered services for debugging
+  List<String> discoveredServiceUUIDs = [];
+  List<String> discoveredCharacteristicUUIDs = [];
+
   bool get isScanning => _isScanning;
   bool get isConnected => _isConnected;
   List<ScanResult> get scanResults => _scanResults;
@@ -33,9 +36,12 @@ class BLEManager extends ChangeNotifier {
   BikeData get bikeData => _bikeData;
   String get logs => _log;
 
-  final Guid _TARGET_SERVICE_UUID = Guid("0000ffe0-0000-1000-8000-00805f9b34fb");
-  final Guid _DATA_CHARACTERISTIC_UUID = Guid("0000ffe1-0000-1000-8000-00805f9b34fb");
-  final Guid _WRITE_CHARACTERISTIC_UUID = Guid("0000ffe2-0000-1000-8000-00805f9b34fb");
+  // Try these common BLE UUIDs first, then fallback to discovery
+  final List<Guid> _possibleServiceUUIDs = [
+    Guid("0000ffe0-0000-1000-8000-00805f9b34fb"), // HM-10 default
+    Guid("0000ffd0-0000-1000-8000-00805f9b34fb"), // Alternative
+    Guid("de732bea-de30-4a81-b519-40a8c6da0509"), // From your logs
+  ];
 
   BLEManager() {
     _startMockDataStream();
@@ -81,14 +87,12 @@ class BLEManager extends ChangeNotifier {
   Future<void> startScan() async {
     if (_isScanning) return;
     
-    // Check permissions first
     final permissionsGranted = await _checkPermissions();
     if (!permissionsGranted) {
       _addLog("ERROR: Permissions not granted!");
       return;
     }
 
-    // Check if Bluetooth is on
     final adapterState = await FlutterBluePlus.adapterState.first;
     if (adapterState != BluetoothAdapterState.on) {
       _addLog("ERROR: Bluetooth is OFF. Please turn it on in settings.");
@@ -179,6 +183,8 @@ class BLEManager extends ChangeNotifier {
         _bikeData = BikeData.blank;
         _dataChar = null;
         _writeChar = null;
+        discoveredServiceUUIDs.clear();
+        discoveredCharacteristicUUIDs.clear();
         _addLog("Disconnected from device");
         notifyListeners();
         _startReconnect(device);
@@ -187,11 +193,9 @@ class BLEManager extends ChangeNotifier {
         _connectedDevice = device;
         _reconnectTimer?.cancel();
         _reconnectAttempt = 0;
-        _addLog("Connected! Checking pairing status...");
+        _addLog("✅ Connected! Discovering services...");
         
-        // Try to pair if not already paired
         await _ensurePaired(device);
-        
         await _discoverAndSubscribe(device);
         notifyListeners();
       }
@@ -212,13 +216,8 @@ class BLEManager extends ChangeNotifier {
       
       if (bondState == BluetoothBondState.none) {
         _addLog("Device not paired. Attempting to pair...");
-        _addLog("You may see a pairing prompt on your phone!");
-        
-        // This will trigger Android's pairing dialog
         await device.createBond();
         _addLog("Pairing initiated");
-        
-        // Wait a bit for pairing to complete
         await Future.delayed(const Duration(seconds: 3));
         
         final newBondState = await device.bondState.first;
@@ -228,7 +227,6 @@ class BLEManager extends ChangeNotifier {
       }
     } catch (e) {
       _addLog("Pairing error: $e");
-      _addLog("If pairing failed, try pairing manually in Android Bluetooth settings first");
     }
   }
   
@@ -254,65 +252,97 @@ class BLEManager extends ChangeNotifier {
 
   Future<void> _discoverAndSubscribe(BluetoothDevice device) async {
     try {
-      _addLog("Discovering services...");
+      _addLog("🔍 Discovering ALL services...");
       List<BluetoothService> services = await device.discoverServices();
       _addLog("Found ${services.length} services");
       
-      bool foundTargetService = false;
+      discoveredServiceUUIDs.clear();
+      discoveredCharacteristicUUIDs.clear();
+      
+      BluetoothCharacteristic? bestDataChar;
+      BluetoothCharacteristic? bestWriteChar;
+      
+      _addLog("\n========== SERVICE DISCOVERY ==========");
       
       for (var service in services) {
-        _addLog("Service: ${service.uuid}");
+        String serviceUUID = service.uuid.toString();
+        discoveredServiceUUIDs.add(serviceUUID);
+        _addLog("📦 Service: $serviceUUID");
         
-        if (service.uuid == _TARGET_SERVICE_UUID) {
-          foundTargetService = true;
-          _addLog("FOUND target service FFE0!");
+        for (var char in service.characteristics) {
+          String charUUID = char.uuid.toString();
+          discoveredCharacteristicUUIDs.add(charUUID);
           
-          for (var char in service.characteristics) {
-            final props = char.properties;
-            _addLog("  Char ${char.uuid.toString().substring(4, 8).toUpperCase()}: R:${props.read} W:${props.write} N:${props.notify}");
-            
-            if (char.uuid == _DATA_CHARACTERISTIC_UUID) {
-              _dataChar = char;
-              _addLog("  Found DATA characteristic (FFE1)");
-            }
-            if (char.uuid == _WRITE_CHARACTERISTIC_UUID) {
-              _writeChar = char;
-              _addLog("  Found WRITE characteristic (FFE2)");
+          final props = char.properties;
+          _addLog("   📝 Char: ${charUUID.substring(4, 8).toUpperCase()}");
+          _addLog("      Read=${props.read}, Write=${props.write}, "
+                  "Notify=${props.notify}, WriteNoResp=${props.writeWithoutResponse}");
+          
+          // Find characteristics with NOTIFY capability (for data)
+          if (props.notify && bestDataChar == null) {
+            bestDataChar = char;
+            _addLog("      ✅ Selected as DATA characteristic");
+          }
+          
+          // Find characteristics with WRITE capability
+          if ((props.write || props.writeWithoutResponse) && bestWriteChar == null) {
+            bestWriteChar = char;
+            _addLog("      ✅ Selected as WRITE characteristic");
+          }
+          
+          // Try to read if readable
+          if (props.read) {
+            try {
+              List<int> value = await char.read();
+              if (value.isNotEmpty) {
+                _addLog("      📊 Read: ${_bytesToHex(value)}");
+              }
+            } catch (e) {
+              _addLog("      ❌ Read failed: $e");
             }
           }
         }
       }
       
-      if (!foundTargetService) {
-        _addLog("WARNING: Target service FFE0 not found!");
-        _addLog("This might not be a Yezdi bike or it uses different UUIDs.");
+      _addLog("======================================\n");
+      
+      // Use discovered characteristics
+      _dataChar = bestDataChar;
+      _writeChar = bestWriteChar;
+      
+      if (_dataChar == null) {
+        _addLog("⚠️ WARNING: No NOTIFY characteristic found!");
+        _addLog("This device may not send continuous data updates.");
         return;
       }
-
-      if (_dataChar != null && _dataChar!.properties.read) {
-        try {
-          final initialData = await _dataChar!.read();
-          _addLog("Initial read: ${_bytesToHex(initialData)}");
-        } catch (e) {
-          _addLog("Could not read initial data: $e");
-        }
+      
+      _addLog("✅ Using DATA characteristic: ${_dataChar!.uuid}");
+      if (_writeChar != null) {
+        _addLog("✅ Using WRITE characteristic: ${_writeChar!.uuid}");
       }
-
-      if (_dataChar != null && _dataChar!.properties.notify) {
+      
+      // Subscribe to notifications
+      try {
         await _dataChar!.setNotifyValue(true);
+        _addLog("🔔 Subscribed to notifications!");
+        
         _dataChar!.lastValueStream.listen((value) {
           if (value.isNotEmpty) {
-            _addLog("Data received: ${_bytesToHex(value)}");
+            _addLog("📥 Data received: ${_bytesToHex(value)}");
             _parseBikeData(value);
           }
+        }, onError: (e) {
+          _addLog("❌ Notification error: $e");
         });
-        _addLog("Subscribed to notifications successfully!");
-      } else {
-        _addLog("ERROR: Cannot subscribe - NOTIFY not supported");
+        
+        _addLog("✅ Ready to receive bike data!");
+        
+      } catch (e) {
+        _addLog("❌ Failed to subscribe: $e");
       }
 
     } catch (e) {
-      _addLog("Discovery error: $e");
+      _addLog("❌ Discovery error: $e");
     }
   }
 
@@ -321,12 +351,15 @@ class BLEManager extends ChangeNotifier {
   }
 
   void _parseBikeData(List<int> data) {
-    if (data.length < 4) {
-      _addLog("Data too short: ${data.length} bytes");
+    if (data.isEmpty) {
+      _addLog("⚠️ Empty data received");
       return;
     }
 
+    _addLog("🔍 Parsing ${data.length} bytes...");
+
     try {
+      // Try to parse with your current format
       _bikeData = BikeData(
         speed: data.length > 0 ? data[0] : 0,
         rpm: data.length > 1 ? data[1] * 50 : 0,
@@ -338,9 +371,13 @@ class BLEManager extends ChangeNotifier {
         engineCheck: data.length > 4 ? (data[4] & 0x04) != 0 : false,
         batteryWarning: data.length > 4 ? (data[4] & 0x08) != 0 : false,
       );
+      
+      _addLog("✅ Parsed: Speed=${_bikeData.speed}, RPM=${_bikeData.rpm}, "
+              "Gear=${_bikeData.gear}, Fuel=${(_bikeData.fuel * 100).toStringAsFixed(0)}%");
+      
       notifyListeners();
     } catch (e) {
-      _addLog("Parse error: $e");
+      _addLog("❌ Parse error: $e");
     }
   }
 
@@ -355,15 +392,15 @@ class BLEManager extends ChangeNotifier {
 
   Future<void> sendCommand(List<int> command) async {
     if (_writeChar == null) {
-      _addLog("Write characteristic not available");
+      _addLog("❌ Write characteristic not available");
       return;
     }
     
     try {
       await _writeChar!.write(command, withoutResponse: true);
-      _addLog("Sent command: ${_bytesToHex(command)}");
+      _addLog("📤 Sent command: ${_bytesToHex(command)}");
     } catch (e) {
-      _addLog("Write error: $e");
+      _addLog("❌ Write error: $e");
     }
   }
 
