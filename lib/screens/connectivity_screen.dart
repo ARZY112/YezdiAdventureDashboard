@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_bluetooth_classic_serial/flutter_bluetooth_classic.dart';
+import 'package:flutter_bluetooth_classic_serial/flutter_bluetooth_classic.dart';  // ← FIX
 import '../utils/classic_bt_manager.dart';
 
 class ConnectivityScreen extends StatelessWidget {
@@ -168,4 +168,5 @@ class ConnectivityScreen extends StatelessWidget {
     );
   }
 }
+
 
