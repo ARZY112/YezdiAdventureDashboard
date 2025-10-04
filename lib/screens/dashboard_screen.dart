@@ -5,7 +5,6 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import '../utils/ble_manager.dart';
 import '../utils/gps_manager.dart';
-import '../utils/music_manager.dart';
 import '../models/bike_data.dart';
 import 'connectivity_screen.dart';
 import 'settings_screen.dart';
@@ -79,8 +78,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     final screenSize = MediaQuery.of(context).size;
     
     return Scaffold(
-      body: Consumer3<BLEManager, GPSManager, MusicManager>(
-        builder: (context, bleManager, gpsManager, musicManager, child) {
+      body: Consumer2<BLEManager, GPSManager>(
+        builder: (context, bleManager, gpsManager, child) {
           final bikeData = bleManager.bikeData;
           final isConnected = bleManager.isConnected;
 
@@ -119,7 +118,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               ),
 
               _buildTopIndicators(bikeData, isConnected),
-              _buildMusicControls(context, musicManager),
             ],
           );
         },
@@ -323,59 +321,4 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       child: Icon(icon, color: isActive ? activeColor : Colors.grey.shade800, size: 28),
     );
   }
-
-  Widget _buildMusicControls(BuildContext context, MusicManager musicManager) {
-  // Check if music is actually playing
-  if (!musicManager.isPlaying || musicManager.currentTrack.isStopped) {
-    return const SizedBox.shrink();
-  }
-
-  return Positioned(
-    bottom: 10,
-    right: 10,
-    child: Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.cyanAccent.withOpacity(0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.music_note, color: Colors.cyanAccent, size: 32),
-          const SizedBox(width: 12),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 200),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  musicManager.title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-                Text(
-                  musicManager.artist,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.white70,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          const Icon(Icons.equalizer, color: Colors.green, size: 24),
-        ],
-      ),
-    ),
-  );
 }
