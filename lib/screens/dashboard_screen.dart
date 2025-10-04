@@ -269,46 +269,135 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   }
   
   Widget _buildRightPanel(BuildContext context, GPSManager gpsManager) {
-    final currentLat = gpsManager.currentPosition?.latitude ?? 26.1445;
-    final currentLng = gpsManager.currentPosition?.longitude ?? 91.7362;
-    
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: FlutterMap(
-          mapController: _mapController,
-          options: MapOptions(
-            initialCenter: LatLng(currentLat, currentLng),
-            initialZoom: 16.0,
-            minZoom: 3.0,
-            maxZoom: 18.0,
-          ),
-          children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.yezdi.dashboard',
+  final currentLat = gpsManager.currentPosition?.latitude ?? 26.1445;
+  final currentLng = gpsManager.currentPosition?.longitude ?? 91.7362;
+  
+  return Padding(
+    padding: const EdgeInsets.all(8.0),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: Stack(
+        children: [
+          // Dark Theme Map
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: LatLng(currentLat, currentLng),
+              initialZoom: 16.0,
+              minZoom: 3.0,
+              maxZoom: 18.0,
             ),
-            if (gpsManager.isTracking)
-              MarkerLayer(
-                markers: [
-                  Marker(
-                    point: LatLng(currentLat, currentLng),
-                    width: 40,
-                    height: 40,
-                    child: const Icon(
-                      Icons.navigation,
-                      color: Colors.blue,
-                      size: 40,
-                    ),
-                  ),
-                ],
+            children: [
+              // DARK MAP TILES
+              TileLayer(
+                urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+                subdomains: const ['a', 'b', 'c'],
+                userAgentPackageName: 'com.yezdi.dashboard',
               ),
-          ],
-        ),
+              
+              // BLUE NEON Navigation Arrow
+              if (gpsManager.isTracking)
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: LatLng(currentLat, currentLng),
+                      width: 60,
+                      height: 60,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.cyanAccent.withOpacity(0.8),
+                              blurRadius: 20,
+                              spreadRadius: 5,
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.navigation,
+                          color: Colors.cyanAccent,
+                          size: 50,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          
+          // FADED EDGES (Gradient overlay)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.3),
+                    Colors.transparent,
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.3),
+                  ],
+                  stops: const [0.0, 0.15, 0.85, 1.0],
+                ),
+              ),
+            ),
+          ),
+          
+          // Side fades
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    Colors.black.withOpacity(0.3),
+                    Colors.transparent,
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.3),
+                  ],
+                  stops: const [0.0, 0.15, 0.85, 1.0],
+                ),
+              ),
+            ),
+          ),
+          
+          // Speed badge
+          if (gpsManager.isTracking)
+            Positioned(
+              top: 10,
+              left: 10,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.cyanAccent, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.cyanAccent.withOpacity(0.5),
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+                child: Text(
+                  "${gpsManager.currentSpeed.toStringAsFixed(0)} km/h",
+                  style: const TextStyle(
+                    color: Colors.cyanAccent,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
-    );
-  }
+    ),
+  );
+}
+
   
   Widget _buildTopIndicators(BikeData data, bool isConnected) {
     return Positioned(
@@ -339,3 +428,4 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     );
   }
 }
+
