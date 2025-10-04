@@ -325,57 +325,57 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   }
 
   Widget _buildMusicControls(BuildContext context, MusicManager musicManager) {
-    if (!musicManager.isPlaying) {
-      return const SizedBox.shrink();
-    }
-
-    return Positioned(
-      bottom: 10,
-      right: 10,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.8),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.cyanAccent.withOpacity(0.3)),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.music_note, color: Colors.cyanAccent, size: 32),
-            const SizedBox(width: 12),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 200),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    musicManager.title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                  Text(
-                    musicManager.artist,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.white70,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            const Icon(Icons.equalizer, color: Colors.green, size: 24),
-          ],
-        ),
-      ),
-    );
+  // Check if music is actually playing
+  if (!musicManager.isPlaying || musicManager.currentTrack.isStopped) {
+    return const SizedBox.shrink();
   }
+
+  return Positioned(
+    bottom: 10,
+    right: 10,
+    child: Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.cyanAccent.withOpacity(0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.music_note, color: Colors.cyanAccent, size: 32),
+          const SizedBox(width: 12),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 200),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  musicManager.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+                Text(
+                  musicManager.artist,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Colors.white70,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Icon(Icons.equalizer, color: Colors.green, size: 24),
+        ],
+      ),
+    ),
+  );
 }
