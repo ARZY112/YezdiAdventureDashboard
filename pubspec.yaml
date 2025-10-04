@@ -13,7 +13,7 @@ dependencies:
 
   # Core Functionality
   flutter_blue_plus: ^1.5.5
-  flutter_bluetooth_serial_2: ^1.0.5  # Fixed package
+  flutter_bluetooth_classic_serial: ^1.0.3  # ← CORRECT PACKAGE
   shared_preferences: ^2.2.3
   sensors_plus: ^3.0.3
 
