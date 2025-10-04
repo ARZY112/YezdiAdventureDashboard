@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../utils/ble_manager.dart';
 import '../utils/gps_manager.dart';
@@ -19,7 +20,7 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> with TickerProviderStateMixin {
   bool _isMenuVisible = false;
   late AnimationController _speedBlinkController;
-  GoogleMapController? _mapController;
+  MapController? _mapController;
 
   int _odometerViewIndex = 0;
   final List<String> _odometerLabels = ['ODO', 'DTE', 'TRIP A', 'AFE A', 'TRIP B', 'AFE B'];
@@ -31,6 +32,8 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       vsync: this,
       duration: const Duration(milliseconds: 500),
     )..repeat(reverse: true);
+    
+    _mapController = MapController();
     
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final gpsManager = Provider.of<GPSManager>(context, listen: false);
@@ -83,14 +86,14 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           final bikeData = bleManager.bikeData;
           final isConnected = bleManager.isConnected;
 
+          // Update map when position changes
           if (gpsManager.currentPosition != null && _mapController != null) {
-            _mapController!.animateCamera(
-              CameraUpdate.newLatLng(
-                LatLng(
-                  gpsManager.currentPosition!.latitude,
-                  gpsManager.currentPosition!.longitude,
-                ),
+            _mapController!.move(
+              LatLng(
+                gpsManager.currentPosition!.latitude,
+                gpsManager.currentPosition!.longitude,
               ),
+              16.0,
             );
           }
 
@@ -266,28 +269,42 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   }
   
   Widget _buildRightPanel(BuildContext context, GPSManager gpsManager) {
+    final currentLat = gpsManager.currentPosition?.latitude ?? 26.1445;
+    final currentLng = gpsManager.currentPosition?.longitude ?? 91.7362;
+    
     return Padding(
       padding: const EdgeInsets.all(8.0),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
-        child: GoogleMap(
-          initialCameraPosition: CameraPosition(
-            target: gpsManager.currentPosition != null
-                ? LatLng(
-                    gpsManager.currentPosition!.latitude,
-                    gpsManager.currentPosition!.longitude,
-                  )
-                : const LatLng(26.1445, 91.7362),
-            zoom: 16,
+        child: FlutterMap(
+          mapController: _mapController,
+          options: MapOptions(
+            initialCenter: LatLng(currentLat, currentLng),
+            initialZoom: 16.0,
+            minZoom: 3.0,
+            maxZoom: 18.0,
           ),
-          myLocationEnabled: true,
-          myLocationButtonEnabled: true,
-          compassEnabled: true,
-          zoomControlsEnabled: false,
-          mapType: MapType.normal,
-          onMapCreated: (controller) {
-            _mapController = controller;
-          },
+          children: [
+            TileLayer(
+              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              userAgentPackageName: 'com.yezdi.dashboard',
+            ),
+            if (gpsManager.isTracking)
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: LatLng(currentLat, currentLng),
+                    width: 40,
+                    height: 40,
+                    child: const Icon(
+                      Icons.navigation,
+                      color: Colors.blue,
+                      size: 40,
+                    ),
+                  ),
+                ],
+              ),
+          ],
         ),
       ),
     );
