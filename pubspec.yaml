@@ -13,6 +13,7 @@ dependencies:
 
   # Core Functionality
   flutter_blue_plus: ^1.5.5
+  flutter_bluetooth_serial: ^0.4.0  # ← ADD THIS LINE
   shared_preferences: ^2.2.3
   sensors_plus: ^3.0.3
 
@@ -42,4 +43,3 @@ flutter:
   assets:
     - assets/yezdi_logo.png
     - assets/yezdi_bike.png
-
