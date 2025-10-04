@@ -6,21 +6,45 @@ import 'utils/ble_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Request necessary permissions on startup for BLE and location.
-  await [
+  
+  // Request permissions BEFORE app starts
+  await requestPermissions();
+  
+  runApp(YezdiDashboardApp());
+}
+
+Future<void> requestPermissions() async {
+  // Request all necessary permissions
+  Map<Permission, PermissionStatus> statuses = await [
     Permission.bluetoothScan,
     Permission.bluetoothConnect,
     Permission.location,
-    Permission.camera,
+    Permission.locationWhenInUse,
   ].request();
+
+  // Check if any were denied
+  bool allGranted = statuses.values.every((status) => status.isGranted);
   
-  runApp(YezdiDashboardApp());
+  if (!allGranted) {
+    print("⚠️ Some permissions denied!");
+    statuses.forEach((permission, status) {
+      print("$permission: $status");
+    });
+    
+    // If permanently denied, open app settings
+    bool anyPermanentlyDenied = statuses.values.any((status) => status.isPermanentlyDenied);
+    if (anyPermanentlyDenied) {
+      print("Opening app settings...");
+      await openAppSettings();
+    }
+  } else {
+    print("✅ All permissions granted!");
+  }
 }
 
 class YezdiDashboardApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    // Using ChangeNotifierProvider to make the BLEManager available throughout the app.
     return ChangeNotifierProvider(
       create: (context) => BLEManager(),
       child: MaterialApp(
