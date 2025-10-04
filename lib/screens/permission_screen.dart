@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'dart:io' show Platform;
 import 'dashboard_screen.dart';
 
 class PermissionScreen extends StatefulWidget {
@@ -24,25 +25,43 @@ class _PermissionScreenState extends State<PermissionScreen> {
       _status = "Requesting permissions...";
     });
 
-    Map<Permission, PermissionStatus> statuses = await [
-      Permission.bluetoothScan,
-      Permission.bluetoothConnect,
-      Permission.location,
-    ].request();
+    Map<Permission, PermissionStatus> statuses = {};
 
-    bool allGranted = statuses.values.every((status) => status.isGranted);
+    // Android version ke according permissions request karo
+    if (Platform.isAndroid) {
+      // Android 12+ (API 31+) ke liye
+      statuses = await [
+        Permission.bluetooth,        // Android 11 aur neeche ke liye
+        Permission.bluetoothScan,    // Android 12+ ke liye
+        Permission.bluetoothConnect, // Android 12+ ke liye
+        Permission.location,         // Sab versions ke liye (Android 11 mein mandatory)
+      ].request();
+    }
 
-    if (allGranted) {
-      // Navigate to dashboard
+    // Check karein ki zaroori permissions granted hain ya nahi
+    bool bluetoothGranted = (statuses[Permission.bluetooth]?.isGranted ?? true) ||
+                           (statuses[Permission.bluetoothConnect]?.isGranted ?? false);
+    bool locationGranted = statuses[Permission.location]?.isGranted ?? false;
+
+    if (bluetoothGranted && locationGranted) {
+      // Sab permissions granted hain - Dashboard pe navigate karo
       if (mounted) {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const DashboardScreen()),
         );
       }
     } else {
+      // Kuch permissions denied hain
       setState(() {
         _isChecking = false;
-        _status = "Some permissions were denied";
+        
+        if (!bluetoothGranted) {
+          _status = "Bluetooth permission denied";
+        } else if (!locationGranted) {
+          _status = "Location permission denied";
+        } else {
+          _status = "Some permissions were denied";
+        }
       });
     }
   }
@@ -93,11 +112,18 @@ class _PermissionScreenState extends State<PermissionScreen> {
                       _status = "Opening settings...";
                     });
                     await openAppSettings();
-                    setState(() {
-                      _isChecking = false;
-                      _status = "Please grant permissions and restart the app";
-                    });
+                    // Settings se wapas aane pe wait karo aur phir recheck karo
+                    await Future.delayed(Duration(milliseconds: 500));
+                    if (mounted) {
+                      setState(() {
+                        _isChecking = false;
+                        _status = "Please grant all permissions and try again";
+                      });
+                    }
                   },
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                  ),
                   child: const Text('Open Settings'),
                 ),
                 const SizedBox(height: 10),
