@@ -3,17 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:nowplaying/nowplaying.dart';
 
 class MusicManager extends ChangeNotifier {
-  final NowPlaying _nowPlaying = NowPlaying();
-  NowPlayingTrack? _currentTrack;
-  bool _isPlaying = false;
   StreamSubscription<NowPlayingTrack>? _trackSubscription;
+  NowPlayingTrack _currentTrack = NowPlayingTrack.notPlaying;
   
-  NowPlayingTrack? get currentTrack => _currentTrack;
-  bool get isPlaying => _isPlaying;
+  NowPlayingTrack get currentTrack => _currentTrack;
+  bool get isPlaying => !_currentTrack.isStopped && _currentTrack.isPlaying;
   
-  String get title => _currentTrack?.title ?? "No Music Playing";
-  String get artist => _currentTrack?.artist ?? "Unknown";
-  String get album => _currentTrack?.album ?? "Unknown Album";
+  String get title => _currentTrack.title?.trim() ?? "No Music Playing";
+  String get artist => _currentTrack.artist?.trim() ?? "Unknown";
+  String get album => _currentTrack.album?.trim() ?? "Unknown Album";
 
   MusicManager() {
     _init();
@@ -21,20 +19,23 @@ class MusicManager extends ChangeNotifier {
 
   Future<void> _init() async {
     try {
-      bool enabled = await _nowPlaying.requestPermissions();
+      // Check if enabled
+      final enabled = await NowPlaying.instance.isEnabled();
       
       if (!enabled) {
         print("❌ Notification listener permission denied");
+        // Request permissions
+        await NowPlaying.instance.requestPermissions();
         print("ℹ️ Go to Settings > Apps > Special Access > Notification Access");
         return;
       }
 
-      await _nowPlaying.start();
+      // Start service
+      await NowPlaying.instance.start();
       
-      _trackSubscription = _nowPlaying.stream.listen((track) {
+      // Listen to stream
+      _trackSubscription = NowPlaying.instance.stream.listen((track) {
         _currentTrack = track;
-        _isPlaying = track.state == NowPlayingState.playing;
-        
         print("🎵 Now Playing: ${track.title} by ${track.artist}");
         notifyListeners();
       });
@@ -44,17 +45,9 @@ class MusicManager extends ChangeNotifier {
     }
   }
 
-  Future<void> requestPermission() async {
-    bool enabled = await _nowPlaying.requestPermissions();
-    if (!enabled) {
-      print("Opening settings...");
-    }
-  }
-
   @override
   void dispose() {
     _trackSubscription?.cancel();
-    _nowPlaying.stop();
     super.dispose();
   }
 }
