@@ -1,0 +1,45 @@
+name: yezdi_dashboard
+description: A custom dashboard for the Yezdi Adventure motorcycle.
+publish_to: 'none' 
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Core Functionality
+  flutter_blue_plus: ^1.5.5
+  shared_preferences: ^2.2.3
+  sensors_plus: ^3.0.3
+
+  # UI & UX
+  google_maps_flutter: ^2.6.0
+  just_audio: ^0.9.39
+  
+  # QR Scanner removed - causing build issues
+  # qr_code_scanner: ^1.0.1
+
+  # Utilities
+  permission_handler: ^11.0.1
+  intl: ^0.19.0
+  crypto: ^3.0.3
+  path_provider: ^2.1.1
+  provider: ^6.0.0
+
+  cupertino_icons: ^1.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/yezdi_logo.png
+    - assets/yezdi_bike.png
+
