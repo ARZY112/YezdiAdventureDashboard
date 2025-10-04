@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../utils/ble_manager.dart';
+import '../utils/classic_bt_manager.dart';  // ← CHANGED
 import '../models/bike_data.dart';
 import 'connectivity_screen.dart';
 import 'settings_screen.dart';
-// import '../widgets/three_d_image.dart'; // No longer needed
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 
@@ -42,9 +41,9 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   void _onOdometerSwipe(DragEndDetails details) {
     if (details.primaryVelocity == 0) return;
     setState(() {
-      if (details.primaryVelocity! < 0) { // Swipe Left
+      if (details.primaryVelocity! < 0) {
         _odometerViewIndex = (_odometerViewIndex + 1) % _odometerLabels.length;
-      } else { // Swipe Right
+      } else {
         _odometerViewIndex = (_odometerViewIndex - 1 + _odometerLabels.length) % _odometerLabels.length;
       }
     });
@@ -72,14 +71,13 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
     final screenSize = MediaQuery.of(context).size;
     
     return Scaffold(
-      body: Consumer<BLEManager>(
+      body: Consumer<ClassicBTManager>(  // ← CHANGED
         builder: (context, bleManager, child) {
           final bikeData = bleManager.bikeData;
           final isConnected = bleManager.isConnected;
 
           return Stack(
             children: [
-              // Background
               Container(
                 decoration: const BoxDecoration(
                   image: DecorationImage(
@@ -90,7 +88,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                 ),
               ),
 
-              // Main Dashboard Layout
               SafeArea(
                 child: Row(
                   children: [
@@ -219,21 +216,20 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   }
   
   Widget _buildRightPanel(BuildContext context) {
-      int navMode = 0; // Set to 0 for static bike image as default, from settings
-      // In a full app, navMode would be retrieved from SharedPreferences or a SettingsProvider.
+      int navMode = 0;
       
       switch(navMode) {
-          case 0: // Static 2D Bike Image
+          case 0:
             return Padding(
               padding: const EdgeInsets.all(8.0),
               child: Image.asset('assets/yezdi_bike.png', fit: BoxFit.contain, opacity: const AlwaysStoppedAnimation(0.8)),
             );
-          case 1: // Faded map with corners
+          case 1:
             return _buildMapView(true);
-          case 2: // Full map
+          case 2:
             return _buildMapView(false);
           default:
-            return const SizedBox.shrink(); // Should not happen with current logic
+            return const SizedBox.shrink();
       }
   }
   
@@ -246,7 +242,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
               borderRadius: BorderRadius.circular(20),
               child: const GoogleMap(
                   initialCameraPosition: CameraPosition(
-                      target: LatLng(26.1445, 91.7362), // Guwahati, Assam
+                      target: LatLng(26.1445, 91.7362),
                       zoom: 14,
                   ),
                   myLocationEnabled: true,
@@ -290,7 +286,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   }
 
   Widget _buildMusicControls(BuildContext context) {
-    bool isMusicPlaying = true; // This would be from a real audio service
+    bool isMusicPlaying = true;
     if(!isMusicPlaying) return const SizedBox.shrink();
 
     return Positioned(
