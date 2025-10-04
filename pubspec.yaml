@@ -17,10 +17,10 @@ dependencies:
   sensors_plus: ^3.0.3
   geolocator: ^10.1.0
   
-  # UI & UX
-  google_maps_flutter: ^2.6.0
+  # UI & UX - FREE MAP (No API Key!)
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.0
   just_audio: ^0.9.39
-  # nowplaying: ^3.0.3  # REMOVED - Will add later
 
   # Utilities
   permission_handler: ^11.0.1
