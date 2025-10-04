@@ -6,19 +6,19 @@ import 'package:intl/intl.dart';
 import '../models/bike_data.dart';
 
 class ClassicBTManager extends ChangeNotifier {
-  final FlutterBluetoothClassic _bluetooth = FlutterBluetoothClassic();
-  BluetoothClassicConnection? _connection;
+  final FlutterBluetoothClassic _bluetooth = FlutterBluetoothClassic.instance;
+  BluetoothConnection? _connection;
   
   bool _isConnected = false;
   BikeData _bikeData = BikeData.blank;
   String _log = "";
-  List<BluetoothClassicDevice> _pairedDevices = [];
+  List<BluetoothDevice> _pairedDevices = [];
   StreamSubscription<Uint8List>? _dataSubscription;
 
   bool get isConnected => _isConnected;
   BikeData get bikeData => _bikeData;
   String get logs => _log;
-  List<BluetoothClassicDevice> get pairedDevices => _pairedDevices;
+  List<BluetoothDevice> get pairedDevices => _pairedDevices;
 
   ClassicBTManager() {
     _init();
@@ -34,10 +34,17 @@ class ClassicBTManager extends ChangeNotifier {
     _addLog("🔧 Initializing Classic Bluetooth...");
     
     try {
-      bool isEnabled = await _bluetooth.isEnabled();
+      bool isAvailable = await _bluetooth.isAvailable;
+      if (!isAvailable) {
+        _addLog("❌ Bluetooth not available");
+        return;
+      }
+      
+      bool isEnabled = await _bluetooth.isEnabled;
       if (!isEnabled) {
         _addLog("⚠️ Bluetooth OFF. Please enable manually.");
       }
+      
       await getPairedDevices();
     } catch (e) {
       _addLog("❌ Init error: $e");
@@ -61,7 +68,7 @@ class ClassicBTManager extends ChangeNotifier {
   Future<void> getPairedDevices() async {
     _addLog("🔍 Getting paired devices...");
     try {
-      List<BluetoothClassicDevice> devices = await _bluetooth.getPairedDevices();
+      List<BluetoothDevice> devices = await _bluetooth.getPairedDevices();
       _pairedDevices = devices;
       _addLog("✅ Found ${devices.length} paired devices");
       for (var device in devices) {
@@ -73,7 +80,7 @@ class ClassicBTManager extends ChangeNotifier {
     }
   }
 
-  Future<void> connectToDevice(BluetoothClassicDevice device) async {
+  Future<void> connectToDevice(BluetoothDevice device) async {
     if (_isConnected) {
       _addLog("⚠️ Disconnecting previous connection...");
       await disconnect();
@@ -82,8 +89,9 @@ class ClassicBTManager extends ChangeNotifier {
     _addLog("🔗 Connecting to ${device.name ?? 'Unknown'}...");
     
     try {
-      _connection = await _bluetooth.connect(device.address);
-      _isConnected = true;
+      BluetoothConnection connection = await BluetoothConnection.toAddress(device.address);
+      _connection = connection;
+      _isConnected = connection.isConnected;
       _addLog("✅ Connected to ${device.name}!");
       
       _dataSubscription = _connection!.input!.listen(
@@ -153,7 +161,7 @@ class ClassicBTManager extends ChangeNotifier {
   Future<void> disconnect() async {
     _addLog("🔌 Disconnecting...");
     _dataSubscription?.cancel();
-    await _connection?.close();
+    _connection?.dispose();
     _isConnected = false;
     _bikeData = BikeData.blank;
     notifyListeners();
