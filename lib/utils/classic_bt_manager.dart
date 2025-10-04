@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial_2.dart';
+import 'package:flutter_bluetooth_classic_serial/flutter_bluetooth_classic.dart';  // ← CORRECT IMPORT
 import 'package:intl/intl.dart';
 import '../models/bike_data.dart';
 
