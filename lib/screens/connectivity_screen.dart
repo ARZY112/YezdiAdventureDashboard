@@ -61,9 +61,11 @@ class ConnectivityScreen extends StatelessWidget {
               itemCount: bleManager.scanResults.length,
               itemBuilder: (context, index) {
                 final result = bleManager.scanResults[index];
-                final isYezdi = result.device.name.toLowerCase().contains("yezdi") || result.device.name.toLowerCase().contains("adventure");
+                final isYezdi = result.device.name.toLowerCase().contains("yezdi") || 
+                               result.device.name.toLowerCase().contains("adventure");
                 return ListTile(
-                  leading: Icon(Icons.motorcycle, color: isYezdi ? Theme.of(context).colorScheme.primary : Colors.grey),
+                  leading: Icon(Icons.motorcycle, 
+                    color: isYezdi ? Theme.of(context).colorScheme.primary : Colors.grey),
                   title: Text(result.device.name.isEmpty ? "Unknown Device" : result.device.name),
                   subtitle: Text(result.device.id.toString()),
                   trailing: ElevatedButton(
@@ -84,7 +86,10 @@ class ConnectivityScreen extends StatelessWidget {
               padding: const EdgeInsets.all(8),
               child: SingleChildScrollView(
                 reverse: true,
-                child: Text(bleManager.logs, style: const TextStyle(fontFamily: 'monospace', fontSize: 10)),
+                child: SelectableText(
+                  bleManager.logs,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 10),
+                ),
               ),
             ),
           )
