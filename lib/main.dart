@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'screens/permission_screen.dart';
 import 'utils/ble_manager.dart';
 import 'utils/gps_manager.dart';
-import 'utils/music_manager.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,7 +18,6 @@ class YezdiDashboardApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => BLEManager()),
         ChangeNotifierProvider(create: (_) => GPSManager()),
-        ChangeNotifierProvider(create: (_) => MusicManager()),
       ],
       child: MaterialApp(
         title: 'Yezdi Adventure Dashboard',
