@@ -13,16 +13,13 @@ dependencies:
 
   # Core Functionality
   flutter_blue_plus: ^1.5.5
-  flutter_bluetooth_serial: ^0.4.0  # ← ADD THIS LINE
+  flutter_bluetooth_serial_2: ^1.0.5  # Fixed package
   shared_preferences: ^2.2.3
   sensors_plus: ^3.0.3
 
   # UI & UX
   google_maps_flutter: ^2.6.0
   just_audio: ^0.9.39
-  
-  # QR Scanner removed - causing build issues
-  # qr_code_scanner: ^1.0.1
 
   # Utilities
   permission_handler: ^11.0.1
