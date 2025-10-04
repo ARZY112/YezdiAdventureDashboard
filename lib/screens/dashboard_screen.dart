@@ -33,7 +33,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       duration: const Duration(milliseconds: 500),
     )..repeat(reverse: true);
     
-    // Auto-start GPS
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final gpsManager = Provider.of<GPSManager>(context, listen: false);
       gpsManager.startTracking();
@@ -85,7 +84,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
           final bikeData = bleManager.bikeData;
           final isConnected = bleManager.isConnected;
 
-          // Update map camera when GPS position changes
           if (gpsManager.currentPosition != null && _mapController != null) {
             _mapController!.animateCamera(
               CameraUpdate.newLatLng(
@@ -166,7 +164,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   }
 
   Widget _buildSpeedometerSection(BikeData data, bool isConnected, GPSManager gpsManager) {
-    // Use GPS speed if tracking, otherwise BLE/mock
     final speed = gpsManager.isTracking 
         ? gpsManager.currentSpeed.round()
         : (isConnected ? data.speed : 0);
@@ -194,10 +191,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(
-              "km/h",
-              style: const TextStyle(color: Colors.white70),
-            ),
+            const Text("km/h", style: TextStyle(color: Colors.white70)),
             if (gpsManager.isTracking) ...[
               const SizedBox(width: 8),
               const Icon(Icons.gps_fixed, size: 16, color: Colors.green),
@@ -243,7 +237,6 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   }
 
   Widget _buildCenterGauges(BikeData data, bool isConnected, GPSManager gpsManager) {
-    // Calculate RPM from GPS speed
     final speed = gpsManager.isTracking ? gpsManager.currentSpeed.round() : data.speed;
     final rpm = (speed * 70).clamp(0, 9000);
     
@@ -286,7 +279,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
                     gpsManager.currentPosition!.latitude,
                     gpsManager.currentPosition!.longitude,
                   )
-                : const LatLng(26.1445, 91.7362), // Guwahati default
+                : const LatLng(26.1445, 91.7362),
             zoom: 16,
           ),
           myLocationEnabled: true,
@@ -332,7 +325,7 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
   }
 
   Widget _buildMusicControls(BuildContext context, MusicManager musicManager) {
-    if (!musicManager.isPlaying || musicManager.currentSong == null) {
+    if (!musicManager.isPlaying) {
       return const SizedBox.shrink();
     }
 
@@ -340,32 +333,46 @@ class _DashboardScreenState extends State<DashboardScreen> with TickerProviderSt
       bottom: 10,
       right: 10,
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.7),
+          color: Colors.black.withOpacity(0.8),
           borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.cyanAccent.withOpacity(0.3)),
         ),
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  musicManager.currentSong!.title,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                Text(
-                  musicManager.currentSong!.artist ?? "Unknown Artist",
-                  style: const TextStyle(fontSize: 12, color: Colors.white70),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+            const Icon(Icons.music_note, color: Colors.cyanAccent, size: 32),
+            const SizedBox(width: 12),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 200),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    musicManager.title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                  Text(
+                    musicManager.artist,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.white70,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(width: 10),
-            IconButton(icon: const Icon(Icons.skip_previous), onPressed: () {}),
-            IconButton(icon: const Icon(Icons.play_arrow), onPressed: () {}),
-            IconButton(icon: const Icon(Icons.skip_next), onPressed: () {}),
+            const SizedBox(width: 12),
+            const Icon(Icons.equalizer, color: Colors.green, size: 24),
           ],
         ),
       ),
