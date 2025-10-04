@@ -1,28 +1,25 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     
     <!-- ===== BLUETOOTH PERMISSIONS ===== -->
-    
-    <!-- Android 11 and below - REMOVE maxSdkVersion -->
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
-    
-    <!-- Android 12+ - REMOVE neverForLocation flag -->
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
     
-    <!-- ===== LOCATION PERMISSIONS ===== -->
-    
-    <!-- Location for BLE scanning - Required on all versions -->
+    <!-- ===== LOCATION PERMISSIONS (GPS + BLE) ===== -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     
-    <!-- ===== PERMISSIONS END ===== -->
+    <!-- ===== INTERNET ===== -->
+    <uses-permission android:name="android.permission.INTERNET" />
     
     <application
         android:label="yezdi_dashboard"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        
+        <!-- Main Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -41,6 +38,18 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        
+        <!-- Music Detection Service -->
+        <service 
+            android:name="com.gomes.nowplaying.NowPlayingListenerService"
+            android:label="NowPlayingListenerService"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+        
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
