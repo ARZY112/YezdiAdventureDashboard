@@ -1,214 +1,134 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../utils/ble_manager.dart';
+import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
+import '../utils/classic_bt_manager.dart';
 
 class ConnectivityScreen extends StatelessWidget {
   const ConnectivityScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final bleManager = Provider.of<BLEManager>(context);
+    final btManager = Provider.of<ClassicBTManager>(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('BLE Connectivity'),
+        title: const Text('Bluetooth Connectivity'),
         actions: [
           IconButton(
             icon: const Icon(Icons.share),
             tooltip: "Export Logs",
-            onPressed: bleManager.exportLogs,
+            onPressed: btManager.exportLogs,
           )
         ],
       ),
       body: Column(
         children: [
-          // Scan and Disconnect Buttons
+          // Refresh and Disconnect Buttons
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 ElevatedButton.icon(
-                  icon: const Icon(Icons.search),
-                  label: const Text('Scan'),
-                  onPressed: bleManager.isScanning ? null : bleManager.startScan,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Refresh Paired'),
+                  onPressed: btManager.getPairedDevices,
                 ),
                 ElevatedButton.icon(
                   icon: const Icon(Icons.cancel),
                   label: const Text('Disconnect'),
-                  onPressed: bleManager.isConnected ? bleManager.disconnectFromDevice : null,
+                  onPressed: btManager.isConnected ? btManager.disconnect : null,
                 ),
               ],
             ),
           ),
-          
-          // Scanning Progress Indicator
-          if (bleManager.isScanning) const LinearProgressIndicator(),
           
           // Connection Status
           ListTile(
             title: const Text("Status", style: TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text(
-              bleManager.isConnected 
-                ? "Connected to ${bleManager.connectedDevice?.platformName ?? 'Unknown'}" 
+              btManager.isConnected 
+                ? "Connected via Classic Bluetooth" 
                 : "Disconnected"
             ),
             trailing: Icon(
-              bleManager.isConnected ? Icons.bluetooth_connected : Icons.bluetooth_disabled,
-              color: bleManager.isConnected ? Colors.green : Colors.red,
+              btManager.isConnected ? Icons.bluetooth_connected : Icons.bluetooth_disabled,
+              color: btManager.isConnected ? Colors.green : Colors.red,
             ),
           ),
           
           const Divider(),
           
-          // === NEW: Discovered Services Section ===
-          if (bleManager.isConnected && bleManager.discoveredServiceUUIDs.isNotEmpty) ...[
-            ExpansionTile(
-              leading: const Icon(Icons.storage, color: Colors.cyanAccent, size: 20),
-              title: const Text(
-                '📦 Discovered Services',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text(
-                '${bleManager.discoveredServiceUUIDs.length} services',
-                style: const TextStyle(fontSize: 11),
-              ),
-              initiallyExpanded: true, // Auto-expand when connected
-              children: [
-                Container(
-                  constraints: const BoxConstraints(maxHeight: 150),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  color: Colors.grey[900],
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: bleManager.discoveredServiceUUIDs.length,
-                    itemBuilder: (context, index) {
-                      final uuid = bleManager.discoveredServiceUUIDs[index];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.circle, size: 5, color: Colors.cyanAccent),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: SelectableText(
-                                uuid,
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontFamily: 'monospace',
-                                ),
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.copy, size: 14),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: () {
-                                Clipboard.setData(ClipboardData(text: uuid));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Service UUID copied!'),
-                                    duration: Duration(seconds: 1),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
+          // Paired Devices Section
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              "Paired Devices (Classic Bluetooth)", 
+              style: Theme.of(context).textTheme.titleLarge
             ),
-            
-            ExpansionTile(
-              leading: const Icon(Icons.list_alt, color: Colors.amberAccent, size: 20),
-              title: const Text(
-                '📝 Characteristics',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text(
-                '${bleManager.discoveredCharacteristicUUIDs.length} characteristics',
-                style: const TextStyle(fontSize: 11),
-              ),
-              initiallyExpanded: true,
-              children: [
-                Container(
-                  constraints: const BoxConstraints(maxHeight: 150),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  color: Colors.grey[900],
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: bleManager.discoveredCharacteristicUUIDs.length,
-                    itemBuilder: (context, index) {
-                      final uuid = bleManager.discoveredCharacteristicUUIDs[index];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 2),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.circle, size: 5, color: Colors.amberAccent),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: SelectableText(
-                                uuid,
-                                style: const TextStyle(
-                                  fontSize: 10,
-                                  fontFamily: 'monospace',
-                                ),
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.copy, size: 14),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
-                              onPressed: () {
-                                Clipboard.setData(ClipboardData(text: uuid));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Characteristic UUID copied!'),
-                                    duration: Duration(seconds: 1),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-            
-            const Divider(),
-          ],
+          ),
           
-          // Discovered Devices Section
-          Text("Discovered Devices", style: Theme.of(context).textTheme.titleLarge),
+          // Info card
+          if (btManager.pairedDevices.isEmpty)
+            Card(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: Colors.orange.shade900,
+              child: const Padding(
+                padding: EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.white),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Go to Android Settings → Bluetooth and pair your bike first!',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          
           Expanded(
             flex: 2,
             child: ListView.builder(
-              itemCount: bleManager.scanResults.length,
+              itemCount: btManager.pairedDevices.length,
               itemBuilder: (context, index) {
-                final result = bleManager.scanResults[index];
-                final deviceName = result.device.platformName.isEmpty 
-                    ? "Unknown Device" 
-                    : result.device.platformName;
+                final device = btManager.pairedDevices[index];
+                final deviceName = device.name ?? "Unknown Device";
                 final isYezdi = deviceName.toLowerCase().contains("yezdi") || 
+                               deviceName.toLowerCase().contains("my yezdi") ||
                                deviceName.toLowerCase().contains("adventure");
                 
-                return ListTile(
-                  leading: Icon(
-                    Icons.motorcycle, 
-                    color: isYezdi ? Theme.of(context).colorScheme.primary : Colors.grey
-                  ),
-                  title: Text(deviceName),
-                  subtitle: Text(result.device.remoteId.toString()),
-                  trailing: ElevatedButton(
-                    child: const Text('Connect'),
-                    onPressed: () => bleManager.connectToDevice(result.device),
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  color: isYezdi ? Colors.cyan.shade900 : Colors.grey.shade800,
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.motorcycle, 
+                      color: isYezdi ? Colors.cyanAccent : Colors.grey,
+                      size: 32,
+                    ),
+                    title: Text(
+                      deviceName,
+                      style: TextStyle(
+                        fontWeight: isYezdi ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    subtitle: Text(
+                      device.address,
+                      style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
+                    ),
+                    trailing: ElevatedButton.icon(
+                      icon: const Icon(Icons.link, size: 16),
+                      label: const Text('Connect'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: isYezdi ? Colors.cyanAccent : null,
+                        foregroundColor: isYezdi ? Colors.black : null,
+                      ),
+                      onPressed: () => btManager.connectToDevice(device),
+                    ),
                   ),
                 );
               },
@@ -218,22 +138,31 @@ class ConnectivityScreen extends StatelessWidget {
           const Divider(),
           
           // Logs Section
-          Text("Logs", style: Theme.of(context).textTheme.titleLarge),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text("Connection Logs", style: Theme.of(context).textTheme.titleLarge),
+          ),
           Expanded(
             flex: 3,
             child: Container(
-              color: Colors.black54,
-              margin: const EdgeInsets.all(8),
+              color: Colors.black87,
+              margin: const EdgeInsets.symmetric(horizontal: 8),
               padding: const EdgeInsets.all(8),
               child: SingleChildScrollView(
                 reverse: true,
                 child: SelectableText(
-                  bleManager.logs, 
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 10),
+                  btManager.logs.isEmpty ? "[No logs yet]" : btManager.logs, 
+                  style: const TextStyle(
+                    fontFamily: 'monospace', 
+                    fontSize: 10,
+                    color: Colors.greenAccent,
+                  ),
                 ),
               ),
             ),
-          )
+          ),
+          
+          const SizedBox(height: 8),
         ],
       ),
     );
