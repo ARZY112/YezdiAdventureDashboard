@@ -36,13 +36,6 @@ class BLEManager extends ChangeNotifier {
   BikeData get bikeData => _bikeData;
   String get logs => _log;
 
-  // Try these common BLE UUIDs first, then fallback to discovery
-  final List<Guid> _possibleServiceUUIDs = [
-    Guid("0000ffe0-0000-1000-8000-00805f9b34fb"), // HM-10 default
-    Guid("0000ffd0-0000-1000-8000-00805f9b34fb"), // Alternative
-    Guid("de732bea-de30-4a81-b519-40a8c6da0509"), // From your logs
-  ];
-
   BLEManager() {
     _startMockDataStream();
     _checkBluetoothState();
@@ -106,7 +99,6 @@ class BLEManager extends ChangeNotifier {
 
     try {
       _scanSubscription = FlutterBluePlus.scanResults.listen((results) {
-        _addLog("Scan results received: ${results.length} devices");
         for (ScanResult r in results) {
           if (!_scanResults.any((sr) => sr.device.remoteId == r.device.remoteId)) {
             _scanResults.add(r);
@@ -137,6 +129,7 @@ class BLEManager extends ChangeNotifier {
     _addLog("Checking permissions...");
     
     Map<Permission, PermissionStatus> statuses = await [
+      Permission.bluetooth,
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
       Permission.location,
@@ -193,10 +186,22 @@ class BLEManager extends ChangeNotifier {
         _connectedDevice = device;
         _reconnectTimer?.cancel();
         _reconnectAttempt = 0;
-        _addLog("✅ Connected! Discovering services...");
+        _addLog("✅ Connected!");
         
-        await _ensurePaired(device);
-        await _discoverAndSubscribe(device);
+        // === CRITICAL: Ensure pairing first! ===
+        bool isPaired = await _ensurePaired(device);
+        
+        if (isPaired) {
+          _addLog("✅ Device is paired. Waiting before discovery...");
+          await Future.delayed(Duration(seconds: 3));
+          await _discoverAndSubscribe(device);
+        } else {
+          _addLog("⚠️ Pairing incomplete. Trying discovery anyway...");
+          _addLog("💡 TIP: Manually pair in Android Bluetooth settings if issues persist!");
+          await Future.delayed(Duration(seconds: 2));
+          await _discoverAndSubscribe(device);
+        }
+        
         notifyListeners();
       }
     });
@@ -209,24 +214,44 @@ class BLEManager extends ChangeNotifier {
     }
   }
 
-  Future<void> _ensurePaired(BluetoothDevice device) async {
+  Future<bool> _ensurePaired(BluetoothDevice device) async {
     try {
       final bondState = await device.bondState.first;
       _addLog("Current bond state: $bondState");
       
-      if (bondState == BluetoothBondState.none) {
-        _addLog("Device not paired. Attempting to pair...");
-        await device.createBond();
-        _addLog("Pairing initiated");
-        await Future.delayed(const Duration(seconds: 3));
-        
-        final newBondState = await device.bondState.first;
-        _addLog("New bond state: $newBondState");
-      } else {
-        _addLog("Device already paired: $bondState");
+      if (bondState == BluetoothBondState.bonded) {
+        _addLog("✅ Already paired!");
+        return true;
       }
+      
+      if (bondState == BluetoothBondState.none) {
+        _addLog("⚙️ Device not paired. Attempting pairing...");
+        _addLog("📱 You may see a pairing prompt - ACCEPT IT!");
+        
+        try {
+          await device.createBond();
+          await Future.delayed(const Duration(seconds: 5));
+          
+          final newBondState = await device.bondState.first;
+          _addLog("New bond state: $newBondState");
+          
+          if (newBondState == BluetoothBondState.bonded) {
+            _addLog("✅ Pairing successful!");
+            return true;
+          } else {
+            _addLog("⚠️ Pairing incomplete: $newBondState");
+            return false;
+          }
+        } catch (e) {
+          _addLog("❌ Pairing error: $e");
+          return false;
+        }
+      }
+      
+      return bondState == BluetoothBondState.bonded;
     } catch (e) {
-      _addLog("Pairing error: $e");
+      _addLog("❌ Bond check error: $e");
+      return false;
     }
   }
   
@@ -253,6 +278,7 @@ class BLEManager extends ChangeNotifier {
   Future<void> _discoverAndSubscribe(BluetoothDevice device) async {
     try {
       _addLog("🔍 Discovering ALL services...");
+      
       List<BluetoothService> services = await device.discoverServices();
       _addLog("Found ${services.length} services");
       
@@ -265,20 +291,26 @@ class BLEManager extends ChangeNotifier {
       _addLog("\n========== SERVICE DISCOVERY ==========");
       
       for (var service in services) {
-        String serviceUUID = service.uuid.toString();
+        String serviceUUID = service.uuid.toString().toUpperCase();
         discoveredServiceUUIDs.add(serviceUUID);
         _addLog("📦 Service: $serviceUUID");
         
+        // Skip standard Bluetooth services
+        if (serviceUUID.startsWith("0000180") || serviceUUID.startsWith("0000181")) {
+          _addLog("   ⏭️ Skipping standard service");
+          continue;
+        }
+        
         for (var char in service.characteristics) {
-          String charUUID = char.uuid.toString();
+          String charUUID = char.uuid.toString().toUpperCase();
           discoveredCharacteristicUUIDs.add(charUUID);
           
           final props = char.properties;
-          _addLog("   📝 Char: ${charUUID.substring(4, 8).toUpperCase()}");
+          _addLog("   📝 Char: ${charUUID.length > 8 ? charUUID.substring(4, 8) : charUUID}");
           _addLog("      Read=${props.read}, Write=${props.write}, "
                   "Notify=${props.notify}, WriteNoResp=${props.writeWithoutResponse}");
           
-          // Find characteristics with NOTIFY capability (for data)
+          // Find characteristics with NOTIFY capability
           if (props.notify && bestDataChar == null) {
             bestDataChar = char;
             _addLog("      ✅ Selected as DATA characteristic");
@@ -293,6 +325,7 @@ class BLEManager extends ChangeNotifier {
           // Try to read if readable
           if (props.read) {
             try {
+              await Future.delayed(Duration(milliseconds: 200));
               List<int> value = await char.read();
               if (value.isNotEmpty) {
                 _addLog("      📊 Read: ${_bytesToHex(value)}");
@@ -306,13 +339,13 @@ class BLEManager extends ChangeNotifier {
       
       _addLog("======================================\n");
       
-      // Use discovered characteristics
       _dataChar = bestDataChar;
       _writeChar = bestWriteChar;
       
       if (_dataChar == null) {
         _addLog("⚠️ WARNING: No NOTIFY characteristic found!");
-        _addLog("This device may not send continuous data updates.");
+        _addLog("Device may not send continuous data.");
+        _addLog("Try reconnecting or manual pairing first.");
         return;
       }
       
@@ -344,6 +377,8 @@ class BLEManager extends ChangeNotifier {
     } catch (e) {
       _addLog("❌ Discovery error: $e");
     }
+    
+    notifyListeners();
   }
 
   String _bytesToHex(List<int> bytes) {
@@ -359,7 +394,6 @@ class BLEManager extends ChangeNotifier {
     _addLog("🔍 Parsing ${data.length} bytes...");
 
     try {
-      // Try to parse with your current format
       _bikeData = BikeData(
         speed: data.length > 0 ? data[0] : 0,
         rpm: data.length > 1 ? data[1] * 50 : 0,
